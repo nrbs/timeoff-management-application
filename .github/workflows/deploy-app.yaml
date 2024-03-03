@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -37,16 +37,25 @@ jobs:
         IMAGE_TAG: details-${{ env.sha }}
       run: |
         echo "Temp - Hello World"
-        # docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
     
     - name: Checkout repo with K8s deployment files
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         token: ${{ secrets.PAT_MORNINGSTAR }}
-        repository: "nrbs/morningstar-assignment"
-        path: "k8s-manifests"
-        ref: "master"
+        repository: nrbs/morningstar-assignment
+        # path: k8s-manifests
+        ref: main
+        sparse-checkout: |
+          k8s-manifests
+        sparse-checkout-cone-mode: false
+
+    # - name: Debud - print current directory
+    #   run: pwd
+    
+    # - name: Debug - list directory contents
+    #   run: ls -la
 
     - name: Update Kubernetes deployment
       env: 
@@ -54,7 +63,7 @@ jobs:
         ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         IMAGE_TAG: details-${{ env.sha }}
       run: |
-        DEPLOYMENT_FILE = "morningstar-assignment/k8s-manifests/deployment.yaml"
+        DEPLOYMENT_FILE="k8s-manifests/deployment.yaml"
 
         # Check if the deployment file needs to be updated
         if grep -q "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$DEPLOYMENT_FILE"; then
@@ -65,6 +74,15 @@ jobs:
 
           # Show updated deployment file
           cat "$DEPLOYMENT_FILE"
+        fi
+
+    - name: Update kube-config
+      run: |
+        aws eks update-kubeconfig --name timeoff-app --region us-east-1
+        pwd
+        ls -la
+      
+
     # - name: Set up kubectl
     #   uses: azure/setup-kubectl@v1
     #   with:
