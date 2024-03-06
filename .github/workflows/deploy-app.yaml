@@ -64,17 +64,20 @@ jobs:
         IMAGE_TAG: details-${{ env.sha }}
       run: |
         DEPLOYMENT_FILE="k8s-manifests/deployment.yaml"
+        cat "$DEPLOYMENT_FILE"
+        sed -i "s|image: $ECR_REGISTRY/$ECR_REPOSITORY:.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|" "$DEPLOYMENT_FILE"
+        cat "$DEPLOYMENT_FILE"
 
-        # Check if the deployment file needs to be updated
-        if grep -q "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$DEPLOYMENT_FILE"; then
-          echo "Image is already up to date in $DEPLOYMENT_FILE"
-        else
-          # Update image tag in deployment file
-          sed -i "s|image: $ECR_REGISTRY/$ECR_REPOSITORY:.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|" "$DEPLOYMENT_FILE"
+        # # Check if the deployment file needs to be updated
+        # if grep -q "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$DEPLOYMENT_FILE"; then
+        #   echo "Image is already up to date in $DEPLOYMENT_FILE"
+        # else
+        #   # Update image tag in deployment file
+        #   sed -i "s|image: $ECR_REGISTRY/$ECR_REPOSITORY:.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|" "$DEPLOYMENT_FILE"
 
-          # Show updated deployment file
-          cat "$DEPLOYMENT_FILE"
-        fi
+        #   # Show updated deployment file
+        #   cat "$DEPLOYMENT_FILE"
+        # fi
 
     - name: Update kube-config
       run: |
@@ -84,14 +87,16 @@ jobs:
       run: |
         cd k8s-manifests
         echo "Current directory: $PWD"
-        echo "Namespaces: \n--------------------------------------------------"
+        echo "--------------------------------------------------"
+        echo "Namespaces:"
         kubectl get namespaces
         echo "--------------------------------------------------"
+        kubectl config set-context --current --namespace=timeoff-app
+        echo "Current namespace: $(kubectl config view --minify --output 'jsonpath={..namespace}')"
         kubectl apply -f deployment.yaml
         kubectl apply -f nginx-ingress.yaml
         echo "--------------------------------------------------"
         kubectl config set-context --current --namespace=cert-manager
-        echo "--------------------------------------------------"
         echo "Current namespace: $(kubectl config view --minify --output 'jsonpath={..namespace}')"
         kubectl apply -f cert-manager.yaml
 
